@@ -1,0 +1,249 @@
+---
+title: "Rain_TS_EDA"
+author: "Halee Staggs, Landon Padgett, Stephen Reagin"
+date: "2023-11-20"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+    cache       = TRUE,    
+    fig.align   = 'center', 
+    fig.path    = 'figs/',  
+    results     = 'asis',   
+    echo        = TRUE,    
+    message     = FALSE,     
+    strip.white = TRUE,   
+    warning     = FALSE)  
+```
+
+# Load Packages
+```{r}
+#install.packages('tidyverse')
+library(tidyverse)
+#install.packages('forecast')
+library(forecast)
+#install.packages('fpp3')
+library(fpp3)
+#install.packages('corrplot')
+library(corrplot)
+#install.packages('Hmisc')
+library(Hmisc)
+#install.packages('stats')
+library(stats)
+```
+
+# Set Working Directory
+```{r}
+setwd("~/Precipitation_Time_Series")
+```
+
+# Load Data
+```{r}
+sd_rain <- read_csv("sd_1940_2022.csv")
+# View(sd_rain)
+```
+
+# Set Seed
+```{r}
+set.seed(8)
+```
+
+# Check Dimensions of Data Frame
+```{r}
+# 30313 rows, 6 features
+dim(sd_rain)
+```
+# Check for Missing Data
+## Temp Average has 24084 missing values, but can be imputed from Max and Min
+```{r}
+# Check for missing data
+summary(sd_rain)
+```
+# Create New Temp Average Variable that averages max and min values
+```{r}
+sd_rain$TAVG2 <- (sd_rain$TMAX+sd_rain$TMIN) / 2
+```
+
+# Verify Summary of Updated Dataframe
+```{r}
+summary(sd_rain)
+```
+# Drop the 2 rows with missing data
+```{r}
+sd_rain <- sd_rain[!is.na(sd_rain$TAVG2), ]
+```
+
+# Create List of Desired Variables
+```{r}
+all.vars <- c('date', 'PRCP', 'TMAX', 'TMIN', 'TAVG2')
+num.vars <- c('PRCP', 'TMAX', 'TMIN', 'TAVG2')
+rain.vars <- c('date', 'PRCP')
+temp.vars <- c('date', 'TMAX')
+```
+
+
+# EDA
+## Numerical Relationships: Temp max, temp min, and average are highly correlated. Can probably drop Max and Min for simplicity. 
+```{r}
+# Check correlation between rain and temperature data
+rcorr(as.matrix(sd_rain[ , (names(sd_rain) %in% num.vars)]), type="pearson")
+
+# Table Displays Pearson coefficient, sample size, and p-value
+```
+## Inspect Date to See Unit of Measurement
+```{r}
+# Date is a daily measurement
+head(sd_rain$date, 40)
+```
+
+### Start Date
+```{r}
+# Start Date
+sort(sd_rain$date)[1]
+```
+
+### End Date
+```{r}
+sort(sd_rain$date, decreasing = T)[1]
+```
+
+## Time Plots
+
+* Date and Precipitation Time Plot
+
+### Plot shows seasonality but no trend
+```{r}
+# Configure Plot Settings
+prcp.plot <- ggplot(sd_rain, aes(x = date, y = PRCP)) +
+  geom_line() +
+  theme_minimal() +
+  labs(title = 'Precipitation by Year', x = 'Years 1940 - 2022', y = 'Precipitation (cm)') +
+  scale_x_date(date_breaks = "10 year", date_labels = "%Y") +
+  stat_smooth(color = 'orange', lwd = 3) 
+
+# Display plot
+prcp.plot
+```
+
+* Date and Average Temperaure Time Plot
+
+### Plot shows seasonality and small trend
+```{r}
+# Configure Plot Settings
+temp.plot <- ggplot(sd_rain, aes(x = date, y = TAVG2)) +
+  geom_line() +
+  theme_minimal() +
+  labs(title = 'Average Temperature by Year', x = 'Years 1940 - 2022', y = 'Temperature (Celsius)') +
+  scale_x_date(date_breaks = "10 year", date_labels = "%Y") +
+  stat_smooth(color = 'orange', lwd = 3) 
+
+# Display plot
+temp.plot
+```
+* Date and Minumum Temperaure Time Plot
+
+### Plot shows seasonality and small trend
+```{r}
+# Configure Plot Settings
+min.plot <- ggplot(sd_rain, aes(x = date, y = TMIN)) +
+  geom_line() +
+  theme_minimal() +
+  labs(title = 'Minumum Temperature by Year', x = 'Years 1940 - 2022', y = 'Temperature (Celsius)') +
+  scale_x_date(date_breaks = "10 year", date_labels = "%Y") +
+  stat_smooth(color = 'orange', lwd = 3) 
+
+# Display plot
+min.plot
+```
+* Date and Maximum Temperaure Time Plot
+
+### Plot shows seasonality but no trend
+```{r}
+# Configure Plot Settings
+max.plot <- ggplot(sd_rain, aes(x = date, y = TMAX)) +
+  geom_line() +
+  theme_minimal() +
+  labs(title = 'Maximum Temperature by Year', x = 'Years 1940 - 2022', y = 'Temperature (Celsius)') +
+  scale_x_date(date_breaks = "10 year", date_labels = "%Y") +
+  stat_smooth(color = 'orange', lwd = 3) 
+
+# Display plot
+max.plot
+```
+
+# Time Series Objects 
+
+* Date and Precipitation Data
+```{r}
+# Create time series
+rain.ts <- ts(sd_rain[ , rain.vars])
+# Inspect first few values to confirm
+head(rain.ts)
+```
+
+* Date and Average Temperature Data
+```{r}
+# Create Time Series
+temp.ts <- ts(sd_rain[ , temp.vars])
+
+# Inspect first few values to confirm
+head(rain.ts)
+```
+
+# Autocorrelation Plots for MA value
+```{r}
+# Rain ACF
+acf(diff(rain.ts[ , 2]))
+```
+
+```{R}
+# Temp ACF
+acf(diff(temp.ts[ , 2]))
+```
+# PACF for AR Value
+```{r}
+# Rain PACF
+pacf(diff(rain.ts[ , 2]))
+```
+
+```{r}
+# Temp PACF
+pacf(diff(temp.ts[ , 2]))
+
+```
+
+# Divide Data into Training and Test Sets for Rain
+```{r}
+rain.train <- window(rain.ts, start = 1, end = 26293)
+rain.train.X <- as.matrix(rain.train[ , 2])
+rain.train.y <- rain.train[ , 1]
+rain.test <- window(rain.ts, start = 26293)
+rain.test.X <- as.matrix(rain.test[ , 2])
+rain.test.y <- rain.test[ , 1]
+```
+
+# Divide Data into Training and Test Sets for Temperature
+```{r}
+temp.train <- window(temp.ts, start = 1, end = 26293)
+temp.train.X <- as.matrix(temp.train[ , 2])
+temp.train.y <- temp.train[ , 1]
+temp.test <- window(temp.ts, start = 26293)
+temp.test.X <- as.matrix(temp.test[ , 2])
+temp.test.y <- temp.test[ , 1]
+```
+
+
+# Train Auto-Arima Models to Start
+## Rain auto ARIMA: Random Walk
+```{r}
+#Auto model to start
+rain.auto <- auto.arima(rain.train.y, xreg = rain.train.X)
+summary(rain.auto)
+```
+## Temp auto ARIMA:
+```{r}
+#Auto model to start
+temp.auto <- auto.arima(temp.train.y, xreg = temp.train.X)
+summary(temp.auto)
+```
