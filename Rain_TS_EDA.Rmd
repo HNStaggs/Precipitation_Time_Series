@@ -122,6 +122,11 @@ prcp.plot <- ggplot(sd_rain, aes(x = date, y = PRCP)) +
   scale_x_date(date_breaks = "10 year", date_labels = "%Y") +
   stat_smooth(color = 'orange', lwd = 3) 
 
+# Save Figure
+png(file="prcp.plot.png")
+prcp.plot
+dev.off()
+
 # Display plot
 prcp.plot
 ```
@@ -138,6 +143,11 @@ temp.plot <- ggplot(sd_rain, aes(x = date, y = TAVG2)) +
   scale_x_date(date_breaks = "10 year", date_labels = "%Y") +
   stat_smooth(color = 'orange', lwd = 3) 
 
+# Save Figure
+png(file="temp.plot.png")
+temp.plot
+dev.off()
+
 # Display plot
 temp.plot
 ```
@@ -153,6 +163,11 @@ min.plot <- ggplot(sd_rain, aes(x = date, y = TMIN)) +
   scale_x_date(date_breaks = "10 year", date_labels = "%Y") +
   stat_smooth(color = 'orange', lwd = 3) 
 
+# Save Figure
+png(file="min.plot.png")
+min.plot
+dev.off()
+
 # Display plot
 min.plot
 ```
@@ -167,6 +182,11 @@ max.plot <- ggplot(sd_rain, aes(x = date, y = TMAX)) +
   labs(title = 'Maximum Temperature by Year', x = 'Years 1940 - 2022', y = 'Temperature (Celsius)') +
   scale_x_date(date_breaks = "10 year", date_labels = "%Y") +
   stat_smooth(color = 'orange', lwd = 3) 
+
+#Save Figure
+png(file="max.plot.png")
+max.plot
+dev.off()
 
 # Display plot
 max.plot
@@ -194,23 +214,46 @@ head(rain.ts)
 # Autocorrelation Plots for MA value
 ```{r}
 # Rain ACF
-acf(diff(rain.ts[ , 2]))
+rain.acf <- acf(diff(rain.ts[ , 2]))
+rain.acf
+
+# Save Figure
+png(file="rain.acf.png")
+rain.acf
+dev.off()
 ```
 
 ```{R}
 # Temp ACF
-acf(diff(temp.ts[ , 2]))
+temp.acf <- acf(diff(temp.ts[ , 2]))
+temp.acf
+
+# Save Figure
+png(file="temp.acf.png")
+temp.acf
+dev.off()
 ```
 # PACF for AR Value
 ```{r}
 # Rain PACF
-pacf(diff(rain.ts[ , 2]))
+rain.pacf <- pacf(diff(rain.ts[ , 2]))
+rain.pacf
+
+# Save Figure
+png(file="rain.pacf.png")
+rain.pacf
+dev.off()
 ```
 
 ```{r}
 # Temp PACF
-pacf(diff(temp.ts[ , 2]))
+temp.pacf <- pacf(diff(temp.ts[ , 2]))
+temp.pacf
 
+# Save Figure
+png(file="temp.pacf.png")
+temp.pacf
+dev.off()
 ```
 
 # Divide Data into Training and Test Sets for Rain
