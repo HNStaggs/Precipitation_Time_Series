@@ -126,7 +126,8 @@ prcp.plot <- ggplot(sd_rain, aes(x = date, y = PRCP)) +
 png(file="prcp.plot.png")
 prcp.plot
 dev.off()
-
+```
+```{r}
 # Display plot
 prcp.plot
 ```
@@ -147,10 +148,12 @@ temp.plot <- ggplot(sd_rain, aes(x = date, y = TAVG2)) +
 png(file="temp.plot.png")
 temp.plot
 dev.off()
-
+```
+```{r}
 # Display plot
 temp.plot
 ```
+
 * Date and Minumum Temperaure Time Plot
 
 ### Plot shows seasonality and small trend
@@ -167,10 +170,12 @@ min.plot <- ggplot(sd_rain, aes(x = date, y = TMIN)) +
 png(file="min.plot.png")
 min.plot
 dev.off()
-
+```
+```{r}
 # Display plot
 min.plot
 ```
+
 * Date and Maximum Temperaure Time Plot
 
 ### Plot shows seasonality but no trend
@@ -187,7 +192,8 @@ max.plot <- ggplot(sd_rain, aes(x = date, y = TMAX)) +
 png(file="max.plot.png")
 max.plot
 dev.off()
-
+```
+```{r}
 # Display plot
 max.plot
 ```
@@ -216,44 +222,25 @@ head(rain.ts)
 # Rain ACF
 rain.acf <- acf(diff(rain.ts[ , 2]))
 rain.acf
-
-# Save Figure
-png(file="rain.acf.png")
-rain.acf
-dev.off()
 ```
 
 ```{R}
 # Temp ACF
 temp.acf <- acf(diff(temp.ts[ , 2]))
 temp.acf
-
-# Save Figure
-png(file="temp.acf.png")
-temp.acf
-dev.off()
 ```
+
 # PACF for AR Value
 ```{r}
 # Rain PACF
 rain.pacf <- pacf(diff(rain.ts[ , 2]))
 rain.pacf
-
-# Save Figure
-png(file="rain.pacf.png")
-rain.pacf
-dev.off()
 ```
 
 ```{r}
 # Temp PACF
 temp.pacf <- pacf(diff(temp.ts[ , 2]))
 temp.pacf
-
-# Save Figure
-png(file="temp.pacf.png")
-temp.pacf
-dev.off()
 ```
 
 # Divide Data into Training and Test Sets for Rain
