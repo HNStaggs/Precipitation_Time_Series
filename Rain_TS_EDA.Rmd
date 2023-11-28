@@ -31,6 +31,10 @@ library(corrplot)
 library(Hmisc)
 #install.packages('stats')
 library(stats)
+#install.packages('tibbletime')
+library(tibbletime)
+#install.packages('caret')
+library(caret)
 ```
 
 # Set Working Directory
@@ -41,7 +45,7 @@ setwd("~/Precipitation_Time_Series")
 # Load Data
 ```{r}
 sd_rain <- read_csv("sd_1940_2022.csv")
-# View(sd_rain)
+View(sd_rain)
 ```
 
 # Set Seed
@@ -65,6 +69,11 @@ summary(sd_rain)
 sd_rain$TAVG2 <- (sd_rain$TMAX+sd_rain$TMIN) / 2
 ```
 
+# Create New Variable with Temp Daily Swing
+```{r}
+sd_rain$TDIFF <- sd_rain$TMAX-sd_rain$TMIN
+```
+
 # Verify Summary of Updated Dataframe
 ```{r}
 summary(sd_rain)
@@ -76,10 +85,10 @@ sd_rain <- sd_rain[!is.na(sd_rain$TAVG2), ]
 
 # Create List of Desired Variables
 ```{r}
-all.vars <- c('date', 'PRCP', 'TMAX', 'TMIN', 'TAVG2')
-num.vars <- c('PRCP', 'TMAX', 'TMIN', 'TAVG2')
+all.vars <- c('date', 'PRCP', 'TMAX', 'TMIN', 'TAVG2', 'TDIFF')
+num.vars <- c('PRCP', 'TMAX', 'TMIN', 'TAVG2', 'TDIFF')
 rain.vars <- c('date', 'PRCP')
-temp.vars <- c('date', 'TMAX')
+temp.vars <- c('date', 'TDIFF')
 ```
 
 
@@ -108,7 +117,52 @@ sort(sd_rain$date)[1]
 sort(sd_rain$date, decreasing = T)[1]
 ```
 
-## Time Plots
+## Look at Distributions of Numerical Variables
+### There is a decent portion of the sample with large values.
+```{r}
+# Precipitation BoxPlot
+ggplot(sd_rain, aes(x = PRCP)) +
+  geom_histogram(bins = 30) +
+  labs(x = 'Precipitation (mm)', y = 'Frequency', title = 'Precipitation Distribution') +
+  theme_classic()
+```
+```{r}
+# Inspect lower precipitation values
+ggplot(sd_rain %>% filter(PRCP < 10), aes(x = PRCP)) +
+  geom_histogram(bins = 30) +
+  labs(x = 'Precipitation (mm)', y = 'Frequency', title = 'Precipitation Distribution') +
+  theme_classic()
+```
+```{r}
+# Maximum Temperature BoxPlot
+ggplot(sd_rain, aes(x = TMAX)) +
+  geom_histogram(bins = 30) +
+  labs(x = 'Temperature (Celsius)', y = 'Frequency', title = 'Maximum Temperature Distribution') +
+  theme_classic()
+```
+```{r}
+# Minimum Temperature BoxPlot
+ggplot(sd_rain, aes(x = TMIN)) +
+  geom_histogram(bins = 30) +
+  labs(x = 'Temperature (Celsius)', y = 'Frequency', title = 'Minumum Temperature Distribution') +
+  theme_classic()
+```
+```{r}
+# Average Temperature BoxPlot
+ggplot(sd_rain, aes(x = TAVG2)) +
+  geom_histogram(bins = 30) +
+  labs(x = 'Temperature (Celsius)', y = 'Frequency', title = 'Average Temperature Distribution') +
+  theme_classic()
+```
+```{r}
+# Temperature Swing BoxPlot
+ggplot(sd_rain, aes(x = TDIFF)) +
+  geom_histogram(bins = 30) +
+  labs(x = 'Temperature (Celsius)', y = 'Frequency', title = 'Temperature Swing Distribution') +
+  theme_classic()
+```
+
+## Time Plots for Daily Data
 
 * Date and Precipitation Time Plot
 
@@ -198,12 +252,183 @@ dev.off()
 max.plot
 ```
 
-# Time Series Objects 
+* Date and Temperaure Swing Time Plot
+
+### Plot shows seasonality but no trend
+```{r}
+# Configure Plot Settings
+diff.plot <- ggplot(sd_rain, aes(x = date, y = TDIFF)) +
+  geom_line() +
+  theme_minimal() +
+  labs(title = 'Temperature Difference by Year', x = 'Years 1940 - 2022', y = 'Temperature (Celsius)') +
+  scale_x_date(date_breaks = "10 year", date_labels = "%Y") +
+  stat_smooth(color = 'orange', lwd = 3) 
+
+#Save Figure
+png(file="diff.plot.png")
+diff.plot
+dev.off()
+```
+
+## Time Plots for Weekly Data
+### Singal is weak for this period
+```{r}
+#Transform dataset into weekly periods with max rainfall
+#View(sd_rain_wk)
+sd_rain_wk <- as_tbl_time(sd_rain[ , rain.vars], index = date) %>%
+collapse_by("week") %>%
+group_by(date) %>%
+summarise_if(is.numeric, max)
+```
+
+* Week and Precipitation Timeplot
+```{r}
+# Configure Plot Settings
+prcp.wk.plot <- ggplot(sd_rain_wk, aes(x = date, y = PRCP)) +
+  geom_line() +
+  theme_minimal() +
+  labs(title = 'Precipitation by Week', x = 'Years 1940 - 2022', y = 'Precipitation (mm)') +
+  scale_x_date(date_breaks = "10 year", date_labels = "%Y") +
+  stat_smooth(color = 'orange', lwd = 3) 
+
+prcp.wk.plot
+
+#Save Figure
+png(file="prcp.wk.plot.png")
+diff.plot
+dev.off()
+```
+
+
+## Time Plots for Monthly Data
+### Monthly period gained a little bit of signal
+```{r}
+#Transform dataset into monthly periods with max rain
+#View(sd_rain_mn)
+sd_rain_mn <- as_tbl_time(sd_rain[ , rain.vars], index = date) %>%
+collapse_by("month") %>%
+group_by(date) %>%
+summarise_if(is.numeric, max)
+```
+
+* Month and Precipitation
+```{r}
+# Configure Plot Settings
+prcp.mn.plot <- ggplot(sd_rain_mn, aes(x = date, y = PRCP)) +
+  geom_line() +
+  theme_minimal() +
+  labs(title = 'Precipitation by Month', x = 'Years 1940 - 2022', y = 'Precipitation (mm)') +
+  scale_x_date(date_breaks = "10 year", date_labels = "%Y") +
+  stat_smooth(color = 'orange', lwd = 3) 
+
+prcp.mn.plot
+
+#Save Figure
+png(file="prcp.mn.plot.png")
+diff.plot
+dev.off()
+```
+
+## Timeplots for Seasonal Data
+### Seasonal data has the most signal
+```{r}
+#Transform dataset into 3-month periods with max rain
+View(sd_rain_sn)
+sd_rain_sn <- as_tbl_time(sd_rain[ , rain.vars], index = date) %>%
+collapse_by("3 month") %>%
+group_by(date) %>%
+summarise_if(is.numeric, max)
+```
+
+* Season and Precipitation
+```{r}
+# Configure Plot Settings
+prcp.sn.plot <- ggplot(sd_rain_sn, aes(x = date, y = PRCP)) +
+  geom_line() +
+  theme_minimal() +
+  labs(title = 'Precipitation by Season', x = 'Years 1940 - 2022', y = 'Precipitation (mm)') +
+  scale_x_date(date_breaks = "10 year", date_labels = "%Y") +
+  stat_smooth(color = 'orange', lwd = 3) 
+
+prcp.sn.plot
+
+#Save Figure
+png(file="prcp.sn.plot.png")
+diff.plot
+dev.off()
+```
+
+* Season and Precipitation for the Past 22 years
+```{r}
+# Configure Plot Settings
+prcp.trim.sn.plot <- ggplot(sd_rain_sn %>% filter(date > 1999-12-31), aes(x = date, y = PRCP)) +
+  geom_line() +
+  theme_minimal() +
+  labs(title = 'Precipitation Max by Season', x = 'Years 2000 - 2022', y = 'Precipitation (mm)') +
+  #scale_x_date(date_breaks = "1 year") +
+  stat_smooth(color = 'orange', lwd = 3) 
+
+prcp.trim.sn.plot
+
+#Save Figure
+png(file="prcp.trim.sn.plot.png")
+diff.plot
+dev.off()
+```
+
+
+
+* Season and Temp Difference
+```{r}
+#Transform dataset into 3-month periods with temp swing
+#View(sd_temp_sn)
+sd_temp_sn <- as_tbl_time(sd_rain[ , temp.vars], index = date) %>%
+collapse_by("3 month") %>%
+group_by(date) %>%
+summarise_if(is.numeric, max)
+```
+
+```{r}
+# Configure Plot Settings
+tdiff.sn.plot <- ggplot(sd_temp_sn, aes(x = date, y = TDIFF)) +
+  geom_line() +
+  theme_minimal() +
+  labs(title = 'Largest Temperature Swing by Season', x = 'Years 1940 - 2022', y = 'Temperature (Celsius)') +
+  scale_x_date(date_breaks = "10 year", date_labels = "%Y") +
+  stat_smooth(color = 'orange', lwd = 3) 
+
+tdiff.sn.plot
+
+#Save Figure
+png(file="tdiff.sn.plot.png")
+diff.plot
+dev.off()
+```
+
+```{r}
+# Configure Plot Settings
+tdiff.trim.sn.plot <- ggplot(sd_temp_sn %>% filter(date > 1999-12-31), aes(x = date, y = TDIFF)) +
+  geom_line() +
+  theme_minimal() +
+  labs(title = 'Largest Temperature Swing by Season', x = 'Years 2000 - 2022', y = 'Temperature (Celsius)') +
+  scale_x_date(date_breaks = "1 year", date_labels = "%Y") +
+  stat_smooth(color = 'orange', lwd = 3) 
+
+tdiff.trim.sn.plot
+
+#Save Figure
+png(file="tdiff.sn.plot.png")
+diff.plot
+dev.off()
+
+```
+
+# Time Series Objects with Past 22 Years of Data
 
 * Date and Precipitation Data
 ```{r}
 # Create time series
-rain.ts <- ts(sd_rain[ , rain.vars])
+rain.ts <- ts(sd_rain_sn %>% filter(date > 1999-12-31))
 # Inspect first few values to confirm
 head(rain.ts)
 ```
@@ -211,13 +436,14 @@ head(rain.ts)
 * Date and Average Temperature Data
 ```{r}
 # Create Time Series
-temp.ts <- ts(sd_rain[ , temp.vars])
+temp.ts <- ts(sd_temp_sn %>% filter(date > 1999-12-31))
 
 # Inspect first few values to confirm
-head(rain.ts)
+head(temp.ts)
 ```
 
-# Autocorrelation Plots for MA value
+# Seasonality Analysis: Values are correlated with seasonal cycles (every 4th lag) and a negative autocorrelation at 1 suggesting swings in the data - for both rain and temperature 
+## Autocorrelation Plots for MA value
 ```{r}
 # Rain ACF
 rain.acf <- acf(diff(rain.ts[ , 2]))
@@ -230,7 +456,7 @@ temp.acf <- acf(diff(temp.ts[ , 2]))
 temp.acf
 ```
 
-# PACF for AR Value
+# PACF for AR Value (value should be 3)
 ```{r}
 # Rain PACF
 rain.pacf <- pacf(diff(rain.ts[ , 2]))
@@ -245,35 +471,97 @@ temp.pacf
 
 # Divide Data into Training and Test Sets for Rain
 ```{r}
-rain.train <- window(rain.ts, start = 1, end = 26293)
+rain.train <- window(rain.ts, start = 1, end = 160)
+rain.test <- window(rain.ts, start = 161)
 rain.train.X <- as.matrix(rain.train[ , 2])
-rain.train.y <- rain.train[ , 1]
-rain.test <- window(rain.ts, start = 26293)
 rain.test.X <- as.matrix(rain.test[ , 2])
+rain.train.y <- rain.train[ , 1]
 rain.test.y <- rain.test[ , 1]
 ```
 
 # Divide Data into Training and Test Sets for Temperature
 ```{r}
-temp.train <- window(temp.ts, start = 1, end = 26293)
+temp.train <- window(temp.ts, start = 1, end = 160)
 temp.train.X <- as.matrix(temp.train[ , 2])
 temp.train.y <- temp.train[ , 1]
-temp.test <- window(temp.ts, start = 26293)
+temp.test <- window(temp.ts, start = 161)
 temp.test.X <- as.matrix(temp.test[ , 2])
 temp.test.y <- temp.test[ , 1]
 ```
 
 
 # Train Auto-Arima Models to Start
-## Rain auto ARIMA: Random Walk
+## Rain auto ARIMA: Not quite a random walk, but the coefficients are not great. Will try again using residuals to train model.
 ```{r}
 #Auto model to start
 rain.auto <- auto.arima(rain.train.y, xreg = rain.train.X)
 summary(rain.auto)
 ```
-## Temp auto ARIMA:
+## Temp auto ARIMA: Close to Random Walk as well
 ```{r}
 #Auto model to start
 temp.auto <- auto.arima(temp.train.y, xreg = temp.train.X)
 summary(temp.auto)
 ```
+# Training Rain as binary outcome and controlling for temperature swing
+## Followed tutorial by Schmueli et al (2018)
+```{r}
+# ADd binary outcome to dataset as being rain over 25 mm (1/10 of a inch)
+sd_rain_sn$bi <- if_else(sd_rain_sn$PRCP > 25, 1, 0)
+
+# Combine temperature and rain data
+sd_both <- merge(sd_rain_sn, sd_temp_sn, by = 'date')
+#View(sd_both)
+
+# Make outcome variable into a factor
+sd_both$bi <- as.factor(sd_both$bi)
+
+# Look at proportion of outcome variable
+# There is 28.9% rain events above 25 mm 
+prop.table(table(sd_both$bi))
+
+# Make a lag variable
+sd_both$lag1 <- c(NA, sd_both$PRCP[1:((length(sd_both$bi))-1)])
+
+# Make sine varibale for seasonality
+sd_both$t <- seq(1, length(sd_both$bi), 1)
+sd_both$sine <- sin(2 * pi * sd_both$t / 365.25)
+
+# Make cosine varible for seasonality
+sd_both$cosine <- cos(2 * pi * sd_both$t / 365.25)
+
+# Get last 22 years of data
+sd_both <- sd_both %>% filter(date > '1999-12-31')
+
+# Inspect first few values to confirm
+#head(sd_both)
+```
+```{r}
+# Split data into testing and training
+bi.train <- sd_both[c(2:68), ]
+bi.test <- sd_both[c(68:92), ]
+```
+
+# Seasonal Max Temperature Difference and Cosine Maxmize prediction of target class 
+
+```{r}
+# Train logistic regression model
+# Cosine predictor optimized ability to predict positive class
+sd.log <- glm(bi ~ TDIFF + cosine, data = bi.train, family = 'binomial')
+summary(sd.log)
+
+```
+```{r}
+# predict testing period
+log.pred <- predict(sd.log, bi.test[ , -3], type = 'response')
+bi.test$pred <- if_else(log.pred > 0.5, 1, 0)
+bi.test$pred <- as.factor(bi.test$pred)
+
+# Create confusion matrix
+confusionMatrix(bi.test$bi, bi.test$pred, positive = '1')
+
+```
+
+# References
+## https://cran.r-project.org/web/packages/tibbletime/tibbletime.pdf
+## schmueli
