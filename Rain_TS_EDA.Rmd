@@ -45,7 +45,7 @@ setwd("~/Precipitation_Time_Series")
 # Load Data
 ```{r}
 sd_rain <- read_csv("sd_1940_2022.csv")
-View(sd_rain)
+#View(sd_rain)
 ```
 
 # Set Seed
@@ -329,6 +329,47 @@ diff.plot
 dev.off()
 ```
 
+* Month and Precipitation for Last 22 Years Only
+```{r}
+prcp.mn.plot.trim <- ggplot(sd_rain_mn %>% filter(date > '1999-12-31'), aes(x = date, y = PRCP)) +
+  geom_line() +
+  theme_minimal() +
+  labs(title = 'Precipitation by Month', x = 'Years 2000 - 2022', y = 'Precipitation (mm)') +
+  scale_x_date(date_breaks = "1 year", date_labels = "%m") +
+  stat_smooth(color = 'orange', lwd = 3) 
+
+prcp.mn.plot.trim
+```
+* Month and Temperature Swing for last 22 Years
+```{r}
+#Transform dataset into monthly periods with temp swing
+#View(sd_temp_sn)
+sd_temp_mn <- as_tbl_time(sd_rain[ , temp.vars], index = date) %>%
+collapse_by("1 month") %>%
+group_by(date) %>%
+summarise_if(is.numeric, max)
+```
+
+
+
+```{r}
+# Configure Plot Settings
+tdiff.mn.plot.trim <- ggplot(sd_temp_mn %>% filter(date > '1999-12-31'), aes(x = date, y = TDIFF)) +
+  geom_line() +
+  theme_minimal() +
+  labs(title = 'Largest Temperature Swing by Month', x = 'Years 2000 - 2022', y = 'Temperature (Celsius)') +
+  scale_x_date(date_breaks = "1 year", date_labels = "%m") +
+  stat_smooth(color = 'orange', lwd = 3) 
+
+tdiff.mn.plot.trim
+
+#Save Figure
+#png(file="tdiff.sn.plot.png")
+#diff.plot
+#dev.off()
+```
+
+
 ## Timeplots for Seasonal Data
 ### Seasonal data has the most signal
 ```{r}
@@ -425,89 +466,276 @@ dev.off()
 
 # Time Series Objects with Past 22 Years of Data
 
-* Date and Precipitation Data
+* Date and Precipitation Data for Seasons
 ```{r}
 # Create time series
-rain.ts <- ts(sd_rain_sn %>% filter(date > 1999-12-31))
+rain.ts.sn <- ts(sd_rain_sn %>% filter(date > '1999-12-31'), frequency = 4)
 # Inspect first few values to confirm
-head(rain.ts)
+head(rain.ts.sn)
 ```
 
-* Date and Average Temperature Data
+* Date and Temperature Data for Seasons
 ```{r}
 # Create Time Series
-temp.ts <- ts(sd_temp_sn %>% filter(date > 1999-12-31))
-
+temp.ts.sn <- ts(sd_temp_sn %>% filter(date > '1999-12-31'), frequency = 4)
 # Inspect first few values to confirm
-head(temp.ts)
+head(temp.ts.sn)
 ```
+
+
+* Date and Precipitation Data for Months
+```{r}
+# Create time series
+rain.ts.mn <- ts(sd_rain_mn %>% filter(date > '1999-12-31'), frequency = 12)
+# Inspect first few values to confirm
+head(rain.ts.mn)
+```
+
+* Date and Temperature Data for Months
+```{r}
+# Create Time Series
+temp.ts.mn <- ts(sd_temp_mn %>% filter(date > '1999-12-31'), frequency = 12)
+# Inspect first few values to confirm
+head(temp.ts.mn)
+```
+
+
 
 # Seasonality Analysis: Values are correlated with seasonal cycles (every 4th lag) and a negative autocorrelation at 1 suggesting swings in the data - for both rain and temperature 
 ## Autocorrelation Plots for MA value
+### Season periodicity
 ```{r}
 # Rain ACF
-rain.acf <- acf(diff(rain.ts[ , 2]))
-rain.acf
+rain.acf.sn <- acf(diff(rain.ts.sn[ , 2]))
+rain.acf.sn
 ```
 
 ```{R}
 # Temp ACF
-temp.acf <- acf(diff(temp.ts[ , 2]))
-temp.acf
+temp.acf.sn <- acf(diff(temp.ts.sn[ , 2]))
+temp.acf.sn
 ```
 
 # PACF for AR Value (value should be 3)
 ```{r}
 # Rain PACF
-rain.pacf <- pacf(diff(rain.ts[ , 2]))
-rain.pacf
+rain.pacf.sn <- pacf(diff(rain.ts.sn[ , 2]))
+rain.pacf.sn
 ```
 
 ```{r}
 # Temp PACF
-temp.pacf <- pacf(diff(temp.ts[ , 2]))
-temp.pacf
+temp.pacf.sn <- pacf(diff(temp.ts.sn[ , 2]))
+temp.pacf.sn
 ```
 
+### Monthly periodicity
+```{r}
+# Rain ACF
+rain.acf.mn <- acf(diff(rain.ts.mn[ , 2]))
+rain.acf.mn
+```
+
+```{R}
+# Temp ACF
+temp.acf.mn <- acf(diff(temp.ts.mn[ , 2]))
+temp.acf.mn
+```
+
+# PACF for AR Value (value should be 3)
+```{r}
+# Rain PACF
+rain.pacf.mn <- pacf(diff(rain.ts.mn[ , 2]))
+rain.pacf.mn
+```
+
+```{r}
+# Temp PACF
+temp.pacf.mn <- pacf(diff(temp.ts.mn[ , 2]))
+temp.pacf.mn
+```
+
+
+
+# Data Partition for Seasonal Data
 # Divide Data into Training and Test Sets for Rain
 ```{r}
-rain.train <- window(rain.ts, start = 1, end = 160)
-rain.test <- window(rain.ts, start = 161)
+#rain.train <- window(rain.ts, start = 1, end = 160)
+#rain.test <- window(rain.ts, start = 161)
+#rain.train.X <- as.matrix(rain.train[ , 2])
+#rain.test.X <- as.matrix(rain.test[ , 2])
+#rain.train.y <- rain.train[ , 1]
+#rain.test.y <- rain.test[ , 1]
+```
+
+# Divide Data into Training and Test Sets for Temperature
+```{r}
+#temp.train <- window(temp.ts, start = 1, end = 160)
+#temp.train.X <- as.matrix(temp.train[ , 2])
+#temp.train.y <- temp.train[ , 1]
+#temp.test <- window(temp.ts, start = 161)
+#temp.test.X <- as.matrix(temp.test[ , 2])
+#temp.test.y <- temp.test[ , 1]
+```
+
+
+# Data Partition for Monthly Data
+```{r}
+#View(rain.ts.mn)
+rain.train <- window(rain.ts.mn, start = 1, end = c(22,12))
+rain.test <- window(rain.ts.mn, start = c(23,1))
 rain.train.X <- as.matrix(rain.train[ , 2])
 rain.test.X <- as.matrix(rain.test[ , 2])
 rain.train.y <- rain.train[ , 1]
 rain.test.y <- rain.test[ , 1]
 ```
+```{r}
+rain.test
+```
 
 # Divide Data into Training and Test Sets for Temperature
 ```{r}
-temp.train <- window(temp.ts, start = 1, end = 160)
+temp.train <- window(temp.ts.mn, start = 1, end = c(22,12))
 temp.train.X <- as.matrix(temp.train[ , 2])
 temp.train.y <- temp.train[ , 1]
-temp.test <- window(temp.ts, start = 161)
+temp.test <- window(temp.ts.mn, start = c(23,1))
 temp.test.X <- as.matrix(temp.test[ , 2])
 temp.test.y <- temp.test[ , 1]
 ```
 
+# Naive Forecast for Monthly Precipiation
+```{r}
+#View(rain.train)
+naive.rain <- naive(rain.train.X, h = 12)
+```
 
-# Train Auto-Arima Models to Start
-## Rain auto ARIMA: Not quite a random walk, but the coefficients are not great. Will try again using residuals to train model.
+```{r}
+autoplot(naive.rain)
+```
+
+
+# Seasonal Naive Forecast for Monthly Precipitation
+```{r}
+snaive.rain <- snaive(rain.train.X, h = 12)
+```
+```{R}
+autoplot(snaive.rain)
+```
+
+# Exponential Smoothing Model
+```{r}
+# First difference at 12-lag for monthly seasonality
+rain.diff <- diff(rain.ts.mn, lag = 12)
+
+# Split data based on differenced data
+rain.train.diff <- window(rain.diff, start = c(1,1), end = c(22,12))
+rain.test.diff <- window(rain.diff, start = c(23,1))
+```
+```{r}
+# Inspect that monthly seasonality was removed
+autoplot(rain.train.diff[ ,2]) + theme_classic()
+
+```
+
+```{r}
+# Train ETS model with differenced data
+rain.ets <- ets(rain.train.diff[ , 2], model = 'ANN', alpha = 0.2)
+rain.ets.pred <- forecast(rain.ets, h = length(rain.test), level = 0)
+```
+```{r}
+accuracy(rain.ets.pred, rain.test[ , 2])
+```
+```{r}
+autoplot(rain.train.diff[ , 2], series = "Training") +
+  autolayer(rain.ets$fitted, series = 'Model', alpha = .8) +
+  autolayer(rain.ets.pred, series = 'Prediction', alpha = .8) +
+  autolayer(rain.test.diff[ , 2], series = "Test", alpha = .8) +
+  theme_classic() +
+  labs(y = 'Rain (mm)', title = 'Precipitation by Year') +
+  coord_cartesian(xlim = c(20, 24)) +
+  scale_x_continuous(breaks = c(20:24), labels = c(2020,2021,2022,2023,2024))
+
+```
+
+# ETS Model without Differencing - Performs Best on the Data
+```{r}
+rain.ets <- ets(rain.train[ , 2], model = 'ZNA')
+rain.ets.pred <- forecast(rain.ets, h = length(rain.test), level = 0)
+```
+```{r}
+accuracy(rain.ets.pred, rain.test[ , 2])
+```
+```{R}
+autoplot(rain.train[ , 2], series = "Training") +
+  autolayer(rain.ets$fitted, series = 'Model', alpha = .8) +
+  autolayer(rain.ets.pred, series = 'Prediction', alpha = .8) +
+  autolayer(rain.test[ , 2], series = "Test", alpha = .8) +
+  theme_classic() +
+  labs(y = 'Rain (mm)', title = 'Precipitation by Year') +
+  coord_cartesian(xlim = c(20, 24)) +
+  scale_x_continuous(breaks = c(20:24), labels = c(2020,2021,2022,2023,2024))
+```
+# Train Auto-Arima Models for Monthly Data
+## Rain auto ARIMA: Model has decent metrics.
 ```{r}
 #Auto model to start
 rain.auto <- auto.arima(rain.train.y, xreg = rain.train.X)
 summary(rain.auto)
 ```
-## Temp auto ARIMA: Close to Random Walk as well
+# Train ARIMA Model
 ```{r}
-#Auto model to start
-temp.auto <- auto.arima(temp.train.y, xreg = temp.train.X)
-summary(temp.auto)
+rain.arima <- Arima(rain.train.y, order = c(0,1,1), seasonal = c(1,1,1), xreg = rain.train.X)
+summary(rain.arima)
 ```
-# Training Rain as binary outcome and controlling for temperature swing
-## Followed tutorial by Schmueli et al (2018)
+
+# Forecast with ARIMA model
 ```{r}
-# ADd binary outcome to dataset as being rain over 25 mm (1/10 of a inch)
-sd_rain_sn$bi <- if_else(sd_rain_sn$PRCP > 25, 1, 0)
+arima.pred <- forecast(rain.arima, xreg = rain.test.X)
+```
+```{r}
+accuracy(arima.pred, rain.test.y)
+
+```
+```{r}
+#Plot ARIMA Model
+autoplot(rain.train.y, series = 'Training') +
+  autolayer(rain.test.y, series = 'Test') +
+  theme_classic() +
+  labs(y = 'Rain (mm)', x = 'Month', title = 'Precipitation Forecast (12 Month)') +
+  coord_cartesian(xlim = c(20, 24)) +
+  scale_x_continuous(breaks = c(20:24), labels = c(2020,2021,2022,2023,2024))
+```
+```{r}
+#Plot ARIMA Model
+autoplot(rain.arima$fitted, series = 'Model') +
+  autolayer(arima.pred, series = 'Prediction') +
+  theme_classic() +
+  labs(y = 'Rain (mm)', x = 'Month', title = 'Precipitation Forecast (12 Month)') +
+  coord_cartesian(xlim = c(20, 24)) +
+  scale_x_continuous(breaks = c(20:24), labels = c(2020,2021,2022,2023,2024))
+
+```
+# Plot Residuals against Real Values
+```{r}
+colnames(arima.df)[1] <- "point"
+colnames(arima.df)[2] <- "low80"
+colnames(arima.df)[3] <- "hi80"
+colnames(arima.df)[4] <- "low95"
+colnames(arima.df)[5] <- "hi95"
+
+arima.df$actual <- rain.test.y                     
+
+ggplot(arima.df, aes(x = actual, y = point)) +
+  geom_point() +
+  theme_classic()
+```
+
+# Logistic Regression for Season Question: What variables classify Rain Events above 0.5 inch/ 13 mm? 
+# Training Rain as binary outcome and controlling for temperature swing and season
+## Followed tutorial by Schmueli et al (2018) for cosine and sine variable 
+```{r}
+# ADd binary outcome to dataset as being rain over 13 mm (0.5 inch)
+sd_rain_sn$bi <- if_else(sd_rain_sn$PRCP > 13, 1, 0)
 
 # Combine temperature and rain data
 sd_both <- merge(sd_rain_sn, sd_temp_sn, by = 'date')
@@ -517,11 +745,74 @@ sd_both <- merge(sd_rain_sn, sd_temp_sn, by = 'date')
 sd_both$bi <- as.factor(sd_both$bi)
 
 # Look at proportion of outcome variable
-# There is 28.9% rain events above 25 mm 
+# Almost 50/50 split
 prop.table(table(sd_both$bi))
 
-# Make a lag variable
-sd_both$lag1 <- c(NA, sd_both$PRCP[1:((length(sd_both$bi))-1)])
+# Make sine varibale for seasonality
+sd_both$t <- seq(1, length(sd_both$bi), 1)
+sd_both$sine <- sin(2 * pi * sd_both$t / 365.25)
+
+# Make cosine varible for seasonality
+sd_both$cosine <- cos(2 * pi * sd_both$t / 365.25)
+
+# Add a Season Variable
+season <- list('Winter', 'Spring', 'Summer', 'Fall')
+sd_both$season <- rep(season, 83)
+sd_both$season <- as.character(sd_both$season)
+sd_both$season <- as.factor(sd_both$season)
+
+# Get last 22 years of data
+sd_both <- sd_both %>% filter(date > '1999-12-31')
+
+# Inspect first few values to confirm
+#head(sd_both)
+```
+```{r}
+# Split data into testing and training
+bi.train <- sd_both[c(1:68), ]
+bi.test <- sd_both[c(68:92), ]
+```
+
+# Seasonal Max Temperature Difference and Cosine Maxmize prediction of target class 
+
+```{r}
+# Train logistic regression model
+# Cosine predictor optimized ability to predict positive class
+sd.log <- glm(bi ~ TDIFF + cosine + season, data = bi.train, family = 'binomial')
+summary(sd.log)
+
+```
+```{r}
+# predict testing period
+log.pred <- predict(sd.log, bi.test[ , -3], type = 'response')
+bi.test$pred <- if_else(log.pred > 0.5, 1, 0)
+bi.test$pred <- as.factor(bi.test$pred)
+
+# Create confusion matrix
+confusionMatrix(bi.test$bi, bi.test$pred, positive = '1')
+
+```
+
+
+# Logistic Regression for Monthly Question: What variables classify Monthly Rain Events above 0.5 inch/ 13 mm? 
+# Training Rain as binary outcome and controlling for temperature swing and season
+## Followed tutorial by Schmueli et al (2018) for cosine and sine variable 
+```{r}
+View(sd_rain_mn)
+
+# ADd binary outcome to dataset as being rain over 13 mm (0.5 of a inch)
+sd_rain_mn$bi <- if_else(sd_rain_mn$PRCP > 13, 1, 0)
+
+# Combine temperature and rain data
+sd_both <- merge(sd_rain_mn, sd_temp_mn, by = 'date')
+#View(sd_both)
+
+# Make outcome variable into a factor
+sd_both$bi <- as.factor(sd_both$bi)
+
+# Look at proportion of outcome variable
+# There is 28.9% rain events above 25 mm 
+prop.table(table(sd_both$bi))
 
 # Make sine varibale for seasonality
 sd_both$t <- seq(1, length(sd_both$bi), 1)
@@ -534,12 +825,15 @@ sd_both$cosine <- cos(2 * pi * sd_both$t / 365.25)
 sd_both <- sd_both %>% filter(date > '1999-12-31')
 
 # Inspect first few values to confirm
-#head(sd_both)
+View(sd_both)
 ```
+
+
+
 ```{r}
 # Split data into testing and training
-bi.train <- sd_both[c(2:68), ]
-bi.test <- sd_both[c(68:92), ]
+bi.train <- sd_both[c(1:264), ]
+bi.test <- sd_both[c(265:276), ]
 ```
 
 # Seasonal Max Temperature Difference and Cosine Maxmize prediction of target class 
@@ -547,7 +841,7 @@ bi.test <- sd_both[c(68:92), ]
 ```{r}
 # Train logistic regression model
 # Cosine predictor optimized ability to predict positive class
-sd.log <- glm(bi ~ TDIFF + cosine, data = bi.train, family = 'binomial')
+sd.log <- glm(bi ~ TDIFF, data = bi.train, family = 'binomial')
 summary(sd.log)
 
 ```
