@@ -7,4 +7,7 @@
 ## Method
 ### Rainfall and temperature data from the National Oceanic and Atmospheric Administration is used here as a data-rich resource for city-level rainfall and temperature data. This data will be used to create time series models that forecast future rainfall events in San Diego.
 
+## Results
+### It was found that San Diego is a rain-dominant climate, with the rainiest seasons being fall and winter. Based on historical data, rain events occur over 76% of the time, with 23% of events having potential for long-standing water (above 0.5 inch). The precipitation pattern in San Diego is quite regular, with a yearly forecast predicting a similar pattern to historical seasonality. 
+
 ## Programming Language: R
