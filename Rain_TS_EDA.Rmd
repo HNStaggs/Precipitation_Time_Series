@@ -1,6 +1,6 @@
 ---
 title: "Rain_TS_EDA"
-author: "Halee Staggs, Landon Padgett, Stephen Reagin"
+author: "Halee Staggs, Landon Padgett"
 date: "2023-11-20"
 output: word_document
 ---
@@ -35,6 +35,8 @@ library(stats)
 library(tibbletime)
 #install.packages('caret')
 library(caret)
+#install.packages('lmtest')
+library(lmtest)
 ```
 
 # Set Working Directory
@@ -133,6 +135,15 @@ ggplot(sd_rain %>% filter(PRCP < 10), aes(x = PRCP)) +
   labs(x = 'Precipitation (mm)', y = 'Frequency', title = 'Precipitation Distribution') +
   theme_classic()
 ```
+# Sqrt transformed Precipitation Distribution
+```{r}
+ggplot(sd_rain, aes(x = sqrt(PRCP))) +
+  geom_histogram(bins = 30) +
+  labs(x = 'Precipitation (mm)', y = 'Frequency', title = 'Precipitation Distribution') +
+  theme_classic()
+```
+
+
 ```{r}
 # Maximum Temperature BoxPlot
 ggplot(sd_rain, aes(x = TMAX)) +
@@ -172,7 +183,7 @@ ggplot(sd_rain, aes(x = TDIFF)) +
 prcp.plot <- ggplot(sd_rain, aes(x = date, y = PRCP)) +
   geom_line() +
   theme_minimal() +
-  labs(title = 'Precipitation by Year', x = 'Years 1940 - 2022', y = 'Precipitation (cm)') +
+  labs(title = 'Precipitation by Year', x = 'Years 1940 - 2022', y = 'Precipitation (mm)') +
   scale_x_date(date_breaks = "10 year", date_labels = "%Y") +
   stat_smooth(color = 'orange', lwd = 3) 
 
@@ -335,11 +346,30 @@ prcp.mn.plot.trim <- ggplot(sd_rain_mn %>% filter(date > '1999-12-31'), aes(x = 
   geom_line() +
   theme_minimal() +
   labs(title = 'Precipitation by Month', x = 'Years 2000 - 2022', y = 'Precipitation (mm)') +
-  scale_x_date(date_breaks = "1 year", date_labels = "%m") +
-  stat_smooth(color = 'orange', lwd = 3) 
+  scale_x_date(date_breaks = "1 year", date_labels = "%y") #+
+  #stat_smooth(color = 'orange', lwd = 3) 
+  #geom_hline(yintercept = 13, color = 'blue', lwd = 3)
 
 prcp.mn.plot.trim
+
+#png(file="prcp.mn.plot.trim.png")
+#prcp.mn.plot.trim
+#dev.off()
 ```
+
+# Calculate Percentage of Months with Rain Less than 13 mm
+```{r}
+sd_rain_trim <- sd_rain_mn %>% filter(date > '1999-12-31')
+
+sd_rain_trim$puddle <- if_else(sd_rain_trim$PRCP > 13, 1, 0)
+sd_rain_trim$rain <- if_else(sd_rain_trim$PRCP > 0, 1, 0)
+
+prop.table(table(sd_rain_trim$puddle))
+prop.table(table(sd_rain_trim$rain))
+
+```
+
+
 * Month and Temperature Swing for last 22 Years
 ```{r}
 #Transform dataset into monthly periods with temp swing
@@ -370,11 +400,12 @@ tdiff.mn.plot.trim
 ```
 
 
+
 ## Timeplots for Seasonal Data
 ### Seasonal data has the most signal
 ```{r}
 #Transform dataset into 3-month periods with max rain
-View(sd_rain_sn)
+#View(sd_rain_sn)
 sd_rain_sn <- as_tbl_time(sd_rain[ , rain.vars], index = date) %>%
 collapse_by("3 month") %>%
 group_by(date) %>%
@@ -555,7 +586,13 @@ temp.pacf.mn <- pacf(diff(temp.ts.mn[ , 2]))
 temp.pacf.mn
 ```
 
+# Decompose Monthly Rain Data
+```{r}
+rain.mn.comps = decompose(rain.ts.mn)
+plot(rain.mn.comps)
+plot
 
+```
 
 # Data Partition for Seasonal Data
 # Divide Data into Training and Test Sets for Rain
@@ -584,43 +621,43 @@ temp.pacf.mn
 #View(rain.ts.mn)
 rain.train <- window(rain.ts.mn, start = 1, end = c(22,12))
 rain.test <- window(rain.ts.mn, start = c(23,1))
-rain.train.X <- as.matrix(rain.train[ , 2])
-rain.test.X <- as.matrix(rain.test[ , 2])
-rain.train.y <- rain.train[ , 1]
-rain.test.y <- rain.test[ , 1]
-```
-```{r}
-rain.test
+rain.train.X <- as.matrix(rain.train[ , 1])
+rain.test.X <- as.matrix(rain.test[ , 1])
+rain.train.y <- rain.train[ , 2]
+rain.test.y <- rain.test[ , 2]
 ```
 
-# Divide Data into Training and Test Sets for Temperature
-```{r}
-temp.train <- window(temp.ts.mn, start = 1, end = c(22,12))
-temp.train.X <- as.matrix(temp.train[ , 2])
-temp.train.y <- temp.train[ , 1]
-temp.test <- window(temp.ts.mn, start = c(23,1))
-temp.test.X <- as.matrix(temp.test[ , 2])
-temp.test.y <- temp.test[ , 1]
-```
 
 # Naive Forecast for Monthly Precipiation
 ```{r}
 #View(rain.train)
-naive.rain <- naive(rain.train.X, h = 12)
+naive.rain <- naive(sqrt(rain.train[ , 2]), h = 12)
 ```
 
 ```{r}
 autoplot(naive.rain)
 ```
-
+```{R}
+naive.pred <- forecast(naive.rain, h = 12)
+```
+```{r}
+accuracy(naive.pred, sqrt(rain.test[ , 2]))
+```
 
 # Seasonal Naive Forecast for Monthly Precipitation
 ```{r}
-snaive.rain <- snaive(rain.train.X, h = 12)
+snaive.rain <- snaive(sqrt(rain.train[ , 2]), h = 12)
 ```
 ```{R}
 autoplot(snaive.rain)
 ```
+```{R}
+snaive.pred <- forecast(snaive.rain, h = 12)
+```
+```{r}
+accuracy(snaive.pred, sqrt(rain.test[ , 2]))
+```
+
 
 # Exponential Smoothing Model
 ```{r}
@@ -633,7 +670,7 @@ rain.test.diff <- window(rain.diff, start = c(23,1))
 ```
 ```{r}
 # Inspect that monthly seasonality was removed
-autoplot(rain.train.diff[ ,2]) + theme_classic()
+autoplot(rain.train.diff[ ,2]) + theme_classic() + labs(y = 'Precipitation Difference (lag = 12)')
 
 ```
 
@@ -643,7 +680,7 @@ rain.ets <- ets(rain.train.diff[ , 2], model = 'ANN', alpha = 0.2)
 rain.ets.pred <- forecast(rain.ets, h = length(rain.test), level = 0)
 ```
 ```{r}
-accuracy(rain.ets.pred, rain.test[ , 2])
+accuracy(rain.ets.pred, rain.test.diff[ , 2])
 ```
 ```{r}
 autoplot(rain.train.diff[ , 2], series = "Training") +
@@ -659,76 +696,156 @@ autoplot(rain.train.diff[ , 2], series = "Training") +
 
 # ETS Model without Differencing - Performs Best on the Data
 ```{r}
-rain.ets <- ets(rain.train[ , 2], model = 'ZNA')
+rain.ets <- ets(sqrt(rain.train[ , 2]), model = 'ZNA')
 rain.ets.pred <- forecast(rain.ets, h = length(rain.test), level = 0)
 ```
 ```{r}
-accuracy(rain.ets.pred, rain.test[ , 2])
+accuracy(rain.ets.pred, sqrt(rain.test[ , 2]))
 ```
 ```{R}
-autoplot(rain.train[ , 2], series = "Training") +
+autoplot(sqrt(rain.train[ , 2]), series = "Training") +
   autolayer(rain.ets$fitted, series = 'Model', alpha = .8) +
   autolayer(rain.ets.pred, series = 'Prediction', alpha = .8) +
-  autolayer(rain.test[ , 2], series = "Test", alpha = .8) +
+  autolayer(sqrt(rain.test[ , 2]), series = "Test", alpha = .8) +
   theme_classic() +
-  labs(y = 'Rain (mm)', title = 'Precipitation by Year') +
+  labs(y = 'Rain (mm)', title = 'ETS Model: Precipitation by Year') +
   coord_cartesian(xlim = c(20, 24)) +
   scale_x_continuous(breaks = c(20:24), labels = c(2020,2021,2022,2023,2024))
 ```
+
+
 # Train Auto-Arima Models for Monthly Data
 ## Rain auto ARIMA: Model has decent metrics.
 ```{r}
 #Auto model to start
-rain.auto <- auto.arima(rain.train.y, xreg = rain.train.X)
+rain.auto <- auto.arima(sqrt(rain.train[ , 2]), xreg = rain.train[ , 1])
 summary(rain.auto)
 ```
+```{r}
+coeftest(rain.auto)
+```
+# Auto Prediction
+```{r}
+auto.pred <- forecast(rain.auto, xreg = sqrt(rain.test[ , 2]))
+accuracy(auto.pred, sqrt(rain.test[ , 2]))
+```
+
+
 # Train ARIMA Model
 ```{r}
-rain.arima <- Arima(rain.train.y, order = c(0,1,1), seasonal = c(1,1,1), xreg = rain.train.X)
+rain.arima <- Arima(sqrt(rain.train[ , 2]), order = c(2,0,0), seasonal = c(2,0,0), xreg = rain.train[ , 1])
 summary(rain.arima)
 ```
+```{r}
+coeftest(rain.arima)
 
+```
 # Forecast with ARIMA model
 ```{r}
-arima.pred <- forecast(rain.arima, xreg = rain.test.X)
+arima.pred <- forecast(rain.arima, xreg = sqrt(rain.test[ , 2]))
 ```
 ```{r}
-accuracy(arima.pred, rain.test.y)
+accuracy(arima.pred, sqrt(rain.test[ , 2]))
 
 ```
 ```{r}
 #Plot ARIMA Model
-autoplot(rain.train.y, series = 'Training') +
-  autolayer(rain.test.y, series = 'Test') +
+autoplot(sqrt(rain.train[ , 2]), series = 'Training') +
+  autolayer(sqrt(rain.test[ , 2]), series = 'Test') +
+  autolayer(rain.arima$fitted, series = 'Model') +
+  autolayer(arima.pred, series = 'Prediction', alpha = 0.4) +
   theme_classic() +
   labs(y = 'Rain (mm)', x = 'Month', title = 'Precipitation Forecast (12 Month)') +
   coord_cartesian(xlim = c(20, 24)) +
   scale_x_continuous(breaks = c(20:24), labels = c(2020,2021,2022,2023,2024))
 ```
+# Plot Residuals Against Real Values for ETS Model
 ```{r}
-#Plot ARIMA Model
-autoplot(rain.arima$fitted, series = 'Model') +
-  autolayer(arima.pred, series = 'Prediction') +
-  theme_classic() +
-  labs(y = 'Rain (mm)', x = 'Month', title = 'Precipitation Forecast (12 Month)') +
-  coord_cartesian(xlim = c(20, 24)) +
-  scale_x_continuous(breaks = c(20:24), labels = c(2020,2021,2022,2023,2024))
+ets.df <- as.data.frame(rain.ets.pred)
+ets.df
 
+colnames(ets.df)[1] <- "point"
+colnames(ets.df)[2] <- "low"
+colnames(ets.df)[3] <- "hi"
+
+ets.df$actual <- sqrt(rain.test[ , 2])                     
+
+ggplot(ets.df, aes(x = actual, y = point)) +
+  geom_point() +
+  theme_classic() +
+  labs(title = 'Residual Plot for ETS Model with 0.95 CI', x = 'Actual Values', y = 'Predicted Value') +
+  geom_smooth()
 ```
-# Plot Residuals against Real Values
+
+
+# Plot Residuals against Real Values for ARIMA Model
 ```{r}
+arima.df <- as.data.frame(arima.pred)
+
 colnames(arima.df)[1] <- "point"
 colnames(arima.df)[2] <- "low80"
 colnames(arima.df)[3] <- "hi80"
 colnames(arima.df)[4] <- "low95"
 colnames(arima.df)[5] <- "hi95"
 
-arima.df$actual <- rain.test.y                     
+arima.df$actual <- sqrt(rain.test[ , 2])                     
 
 ggplot(arima.df, aes(x = actual, y = point)) +
   geom_point() +
-  theme_classic()
+  theme_classic() +
+  labs(title = 'Residual Plot for ARIMA Model with 0.95 CI', x = 'Actual Values', y = 'Predicted Value') +
+  geom_smooth()
 ```
+
+
+# Model Selection and Future Forecast: ARIMA Performs the best with lowest RMSE on the Test Period and Only One Prediction outside of CI
+## Retrain Model with All Data, and Create Forecast for next 12 Months
+```{r}
+final.arima <- Arima(sqrt(rain.ts.mn[ , 2]), order = c(2,0,0), seasonal = c(1,1,1))
+summary(final.arima)
+
+coeftest(final.arima)
+```
+```{r}
+rain.forecast <- sqrt(rain.ts.mn[ , 2]) %>% Arima(order = c(2,0,0), seasonal = c(1,1,1)) %>% forecast(h=12)
+
+rain.forecast.df <- as.data.frame(rain.forecast)
+colnames(rain.forecast.df)[1] <- 'point'
+colnames(rain.forecast.df)[2] <- "low80"
+colnames(rain.forecast.df)[3] <- "hi80"
+colnames(rain.forecast.df)[4] <- "low95"
+colnames(rain.forecast.df)[5] <- "hi95"
+
+rain.forecast.df$prcp.sq <- rain.forecast.df$point^2
+
+rain.forecast.df$month <- index(rain.forecast.df)
+rain.forecast.df
+```
+
+```{r}
+autoplot(sqrt(rain.ts.mn[ , 2]), series = 'Data Input') +
+  autolayer(rain.forecast, series = 'Future Forecast') +
+  theme_minimal() +
+  labs(y = 'Precipitation (square root mm)', x = 'Month/Year', title = 'Rainfall Pattern Estimate for Next 12 Months') +
+  coord_cartesian(xlim = c(23, 25)) +
+  geom_vline(xintercept = c(24, 24.25, 24.5, 24.75, 25)) +
+  scale_x_continuous(breaks = c(23, 23.25, 23.5, 23.75, 24, 24.25, 24.5, 24.75,25), 
+                     labels = c('1/23','3/23', '6/23','9/23','1/24','3/24', '6/24','9/24', '1/25'))
+```
+# Forecast Graph
+```{r}
+ggplot(rain.forecast.df, aes(x = month, y = prcp.sq)) +
+  geom_line() +
+  theme_minimal() +
+  labs(title = 'Forecasted Precipitation by Month for Next Fiscal Year', x = 'Month', y = 'Precipitation (mm)') +
+  scale_x_continuous(breaks = c(1:12), labels = c('Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct',
+                                                  'Nov', 'Dec')) +
+  geom_hline(yintercept = 13, col = 'blue')
+
+```
+
+
+# Exploratory Analysis
 
 # Logistic Regression for Season Question: What variables classify Rain Events above 0.5 inch/ 13 mm? 
 # Training Rain as binary outcome and controlling for temperature swing and season
@@ -858,4 +975,3 @@ confusionMatrix(bi.test$bi, bi.test$pred, positive = '1')
 
 # References
 ## https://cran.r-project.org/web/packages/tibbletime/tibbletime.pdf
-## schmueli
